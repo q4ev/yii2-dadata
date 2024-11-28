@@ -9,15 +9,9 @@ class DaData extends \yii\base\BaseObject
 {
 	protected ?string $_token = null;
 
-	public function suggestParty ($query, $params = null)
+	protected function __getContext ($data)
 	{
-		$data = [
-			'count' => $params['count'] ?: 10,
-			'params' => [ 'status' => [ 'ACTIVE' ] ],
-			'query' => $query,
-		];
-
-		$context = \stream_context_create([
+		return \stream_context_create([
 			'http' => [
 				'timeout' => 1,
 				'method'  => 'POST',
@@ -29,11 +23,20 @@ class DaData extends \yii\base\BaseObject
 				'content' => \json_encode($data, JSON_UNESCAPED_UNICODE),
 			],
 		]);
+	}
+
+	protected function __sendRequest ($url, $query, $params)
+	{
+		$data = [
+			'count' => $params['count'] ?: 10,
+			'params' => ['status' => ['ACTIVE']],
+			'query' => $query,
+		];
 
 		$result = \file_get_contents(
-			'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party',
+			$url,
 			false,
-			$context
+			$this->__getContext($data)
 		);
 
 		$response = \json_decode($result, true);
@@ -42,6 +45,16 @@ class DaData extends \yii\base\BaseObject
 			return $response;
 
 		return $response['suggestions'];
+	}
+
+	public function findByIdParty ($query, $params = null)
+	{
+		return $this->__sendRequest('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', $query, $params);
+	}
+
+	public function suggestParty ($query, $params = null)
+	{
+		return $this->__sendRequest('https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party', $query, $params);
 	}
 
 	public function setToken (string $token)
