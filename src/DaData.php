@@ -5,11 +5,54 @@ namespace q4ev\daData;
 
 use yii\base\InvalidConfigException;
 
+/**
+ * @property-write string|null $token
+ */
 class DaData extends \yii\base\BaseObject
 {
 	protected ?string $_token = null;
 
-	protected function __getContext ($data)
+	public function findByIdParty ($query, $params = null)
+	{
+		$postBody = [
+			'count' => $params['count'] ?: 10,
+			'params' => ['status' => ['ACTIVE']],
+			'query' => $query,
+		];
+
+		return $this->sendRequest($this->getUrl('findById/party'), $postBody, $params['raw'] ?? false);
+	}
+
+	public function suggestFmsUnit ($query, $params = null)
+	{
+		$postBody = [
+			'query' => $query,
+		];
+
+		return $this->sendRequest($this->getUrl('suggest/fms_unit'), $postBody, $params['raw'] ?? false);
+	}
+
+	public function suggestParty ($query, $params = null)
+	{
+		$postBody = [
+			'count' => $params['count'] ?: 10,
+			'params' => ['status' => ['ACTIVE']],
+			'query' => $query,
+		];
+
+		return $this->sendRequest($this->getUrl('suggest/party'), $postBody, $params['raw'] ?? false);
+	}
+
+	public function setToken (string $token)
+	{
+		$this->_token = $token;
+
+		if (!preg_match('/^[a-f\d]{40}$/', $this->_token)) {
+			throw new InvalidConfigException('Proper token for DaData requests needed');
+		}
+	}
+
+	protected function getContext ($data)
 	{
 		return \stream_context_create([
 			'http' => [
@@ -25,43 +68,25 @@ class DaData extends \yii\base\BaseObject
 		]);
 	}
 
-	protected function __sendRequest ($url, $query, $params)
+	protected function getUrl (string $endingPart)
 	{
-		$data = [
-			'count' => $params['count'] ?: 10,
-			'params' => ['status' => ['ACTIVE']],
-			'query' => $query,
-		];
+		return 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/'.trim($endingPart, '/');
+	}
 
+	protected function sendRequest (string $url, array $postBody, bool $returnRaw = false)
+	{
 		$result = \file_get_contents(
 			$url,
 			false,
-			$this->__getContext($data)
+			$this->getContext($postBody)
 		);
 
 		$response = \json_decode($result, true);
 
-		if ($params['raw'])
+		if ($returnRaw) {
 			return $response;
+		}
 
-		return $response['suggestions'];
-	}
-
-	public function findByIdParty ($query, $params = null)
-	{
-		return $this->__sendRequest('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', $query, $params);
-	}
-
-	public function suggestParty ($query, $params = null)
-	{
-		return $this->__sendRequest('https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party', $query, $params);
-	}
-
-	public function setToken (string $token)
-	{
-		$this->_token = $token;
-
-		if (!preg_match('/^[a-f\d]{40}$/', $this->_token))
-			throw new InvalidConfigException('Proper token for DaData requests needed');
+		return $response['suggestions'] ?? null;
 	}
 }
