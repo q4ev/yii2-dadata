@@ -23,6 +23,11 @@ class DaData extends \yii\base\BaseObject
 		return $this->sendRequest($this->getUrl('findById/party'), $postBody, $params['raw'] ?? false);
 	}
 
+	public function suggestAddress (array $postBody, $params = null)
+	{
+		return $this->sendRequest($this->getUrl('suggest/address'), $postBody, $params['raw'] ?? false);
+	}
+
 	public function suggestFmsUnit ($query, $params = null)
 	{
 		$postBody = [
